@@ -1,0 +1,85 @@
+/*
+* X3DH (Extended Diffie-Hellman Prtocol)
+Protokol Perjanjian Kunci berdasarkan Diffie Hellman
+*/
+
+const Sign: Function;	//Signature
+const DH: Function;	//Diffie Hellman
+const KDF: Function;	//Key Derivation Function
+
+
+usertype IdentityKey;
+usertype OneTimeKey;
+usertype SignPreKey;
+usertype EphemeralKey; 
+usertype Message;
+usertype Certificate;
+
+protocol x3dh(A, B, S)
+{
+	macro Ctf = ({Sign, IKb, SPKb}sk(B));
+	macro DH1 = DH(IKa, SPKb);
+	macro DH2 = DH(EKa, IKb);
+	macro DH3 = DH(EKa, SPKb);
+	macro DH4 = DH(EKa, OPKb);
+	macro Kab = KDF(DH1, DH2, DH3, DH4);
+
+	role A{
+	fresh IKa: IdentityKey;
+	fresh EKa: EphemeralKey;
+	fresh M:	Message;
+
+	var IKb: IdentityKey;
+	var OPKb: OneTimeKey;
+	var SPKb: SignPreKey;
+	var Ctf: Certificate;
+
+	send_2(A,S,B);
+	recv_3(S, A, Ctf, SPKb, IKb, OPKb);
+	send_4(A, B, IKa, EKa, {M}Kab);
+
+
+	claim(A, Alive);
+	claim(A, Niagree);
+	claim(A, Nisynch);
+	claim(A, Secret, EKa);
+	claim(A, Secret, Kab);
+	claim(A, SKR, Kab);
+	}
+	role B{
+	fresh Ctf: Certificate;
+	fresh SPKb: SignPreKey;
+	fresh IKb: IdentityKey;
+	fresh OPKb: OneTimeKey;
+	
+	var IKa: IdentityKey;
+	var EKa: EphemeralKey;
+	var M: Message;
+
+	send_1(B, S, Ctf, SPKb, IKb, OPKb);
+	recv_4(A, B, IKa, EKa, {M}Kab);
+
+	claim(B, Alive);
+	claim(B, Niagree);
+	claim(B, Nisynch);
+	claim(B, Secret, sk(B));
+	claim(B, Secret, Kab);
+	claim(B, SKR, Kab);
+	}
+
+	role S{
+	var SPKb: SignPreKey;
+	var Ctf: Certificate;
+	var IKb: IdentityKey;
+	var OPKb: OneTimeKey;
+	
+	recv_1(B, S, Ctf, SPKb, IKb, OPKb);
+	recv_2(A,S, B); 
+
+	send_3(S, A, Ctf, SPKb, IKb, OPKb);
+	claim(S, Alive);
+	claim(S, Niagree);
+	claim(S, Nisynch);
+	}
+    
+}
